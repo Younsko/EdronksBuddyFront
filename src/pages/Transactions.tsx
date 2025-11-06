@@ -10,6 +10,7 @@ import { transactionsAPI, categoriesAPI } from '../services/api';
 import { Transaction } from '../types';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
+import { useCurrency } from '../hooks/useCurrency';
 
 export const Transactions = () => {
   const queryClient = useQueryClient();
@@ -18,6 +19,7 @@ export const Transactions = () => {
   const [filterCategory, setFilterCategory] = useState('');
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
+  const { formatAmountWithOriginal} = useCurrency();
 
   const { data: transactionsResponse, isLoading } = useQuery({
     queryKey: ['transactions'],
@@ -329,7 +331,10 @@ const filteredTransactions = transactions.filter(t => {
                       )}
                     </td>
                     <td className="py-4 px-4 text-right font-semibold text-expense dark:text-expense-dark">
-                      {(transaction.amount || 0).toFixed(2)}
+                    {formatAmountWithOriginal(
+                    transaction.originalAmount,
+                    transaction.originalCurrency
+                    )}
                     </td>
                     <td className="py-4 px-4 text-center text-gray-600 dark:text-gray-400">
                       {transaction.currency}
@@ -392,11 +397,15 @@ const filteredTransactions = transactions.filter(t => {
                       )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-expense dark:text-expense-dark">
-                      {transaction.currency} {(transaction.amount || 0).toFixed(2)}
-                    </p>
+                 <div className="text-right">
+                <p className="font-semibold text-expense dark:text-expense-dark">
+                 {formatAmountWithOriginal(
+                   transaction.originalAmount,
+                   transaction.originalCurrency
+                   )}
+                  </p>
                   </div>
+
                 </div>
                 <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                   <button

@@ -8,12 +8,12 @@ import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
 import { Input } from "../components/Input";
 import { FloatingActionButton } from "../components/FloatingActionButton";
-import { categoriesAPI } from "../services/api";
-import { Category } from "../types";
+import { categoriesAPI, monthlyBudgetsAPI } from "../services/api";
+import { Category, MonthlyBudget } from "../types";
 import { useForm } from "react-hook-form";
 import { motion } from "framer-motion";
+import { useCurrency } from '../hooks/useCurrency';
 
-// --- Hook Dark Mode ---
 const useDarkMode = () => {
   const [isDark, setIsDark] = useState(false);
   useState(() => {
@@ -30,17 +30,15 @@ const useDarkMode = () => {
   return isDark;
 };
 
-// --- Couleurs preset ---
 const PRESET_COLORS = [
   "#17B169", "#4A90E2", "#E84855", "#F4C430",
   "#9B59B6", "#E67E22", "#1ABC9C", "#34495E",
   "#FF6B6B", "#95E1D3",
 ];
 
-// --- Fonctions utilitaires ---
 const adjustColorForDarkMode = (color: string, darkMode: boolean) => {
   if (!darkMode) return color;
-  const amount = -80; // assombrir
+  const amount = -80;
   return color.replace(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i, (_, r, g, b) => {
     const clamp = (val: number) => Math.max(0, Math.min(255, val));
     const newR = clamp(parseInt(r, 16) + amount).toString(16).padStart(2, "0");
@@ -53,13 +51,22 @@ const adjustColorForDarkMode = (color: string, darkMode: boolean) => {
 export const Categories = () => {
   const queryClient = useQueryClient();
   const isDark = useDarkMode();
-
+  const { currency, formatAmount, convertAmount } = useCurrency();
+  const [selectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
 
+  const { data: monthlyBudgets = [], isLoading } = useQuery({
+    queryKey: ['monthlyBudgets', selectedDate.getFullYear(), selectedDate.getMonth() + 1],
+    queryFn: () => monthlyBudgetsAPI.getMonthlyBudgets(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth() + 1
+    ),
+  });
+
   const { data: categories = [] } = useQuery({
-    queryKey: ["categories"],
+    queryKey: ['categories'],
     queryFn: categoriesAPI.getAll,
   });
 
@@ -69,6 +76,7 @@ export const Categories = () => {
     mutationFn: categoriesAPI.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["monthlyBudgets"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
       setIsModalOpen(false);
       reset();
@@ -76,16 +84,20 @@ export const Categories = () => {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string | number; data: any }) =>
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string | number; data: Partial<Category> }) => 
       categoriesAPI.update(String(id), data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
-      queryClient.invalidateQueries({ queryKey: ["stats"] });
-      setIsModalOpen(false);
-      setEditingCategory(null);
-      reset();
-      setSelectedColor(PRESET_COLORS[0]);
+    },
+  });
+
+  const updateBudgetMutation = useMutation({
+    mutationFn: ({ categoryId, budgetAmount }: { categoryId: string; budgetAmount: number }) =>
+      monthlyBudgetsAPI.updateBudget(categoryId, budgetAmount),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['monthlyBudgets'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
   });
 
@@ -93,17 +105,21 @@ export const Categories = () => {
     mutationFn: (id: string | number) => categoriesAPI.delete(String(id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["monthlyBudgets"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
   });
 
-  const handleOpenModal = (category?: Category) => {
-    if (category) {
-      setEditingCategory(category);
-      setValue("name", category.name);
-      setValue("budget", category.budget);
-      setSelectedColor(category.color);
+  const handleOpenModal = (budget?: MonthlyBudget) => {
+    if (budget) {
+      const category = categories.find(c => c.id === budget.categoryId);
+      if (category) {
+        setEditingCategory(category);
+        setValue('name', category.name);
+        setValue('budget', budget.budgetAmount);
+        setSelectedColor(category.color);
+      }
     } else {
       setEditingCategory(null);
       reset();
@@ -113,39 +129,87 @@ export const Categories = () => {
   };
 
   const onSubmit = (data: any) => {
-    const payload = {
-      name: data.name,
-      color: selectedColor,
-      budget: parseFloat(data.budget) || 0,
-    };
     if (editingCategory) {
-      updateMutation.mutate({ id: editingCategory.id, data: payload });
+      const categoryUpdate = {
+        name: data.name,
+        color: selectedColor,
+      };
+      
+      updateCategoryMutation.mutate({ 
+        id: editingCategory.id, 
+        data: categoryUpdate 
+      });
+      
+      updateBudgetMutation.mutate({
+        categoryId: String(editingCategory.id),
+        budgetAmount: parseFloat(data.budget) || 0,
+      }).then(() => {
+        setIsModalOpen(false);
+        setEditingCategory(null);
+        reset();
+        setSelectedColor(PRESET_COLORS[0]);
+      });
     } else {
+      const payload = {
+        name: data.name,
+        color: selectedColor,
+        budget: parseFloat(data.budget) || 0,
+      };
       createMutation.mutate(payload);
     }
   };
 
   const handleDelete = (id: string | number) => {
-    if (confirm("Are you sure? All associated transactions will need reassignment.")) {
+    if (window.confirm("Are you sure you want to delete this category? All associated transactions will be uncategorized.")) {
       deleteMutation.mutate(id);
     }
   };
 
-  // Stats cards
   const stats = useMemo(() => {
-    if (!categories.length) return [];
-    const totalSpent = categories.reduce((sum, cat) => sum + (cat.spent || 0), 0);
-    const totalBudget = categories.reduce((sum, cat) => sum + (cat.budget || 0), 0);
-    const highestCategory = categories.reduce(
-      (prev, curr) => (curr.spent > (prev.spent || 0) ? curr : prev),
-      {} as Category
+    if (!monthlyBudgets.length) return [];
+    
+    const totalSpent = monthlyBudgets.reduce((sum, budget) => {
+      const convertedSpent = convertAmount(budget.spentThisMonth || 0, 'PHP');
+      return sum + convertedSpent;
+    }, 0);
+    
+    const totalBudget = monthlyBudgets.reduce((sum, budget) => {
+      const convertedBudget = convertAmount(budget.budgetAmount || 0, 'PHP');
+      return sum + convertedBudget;
+    }, 0);
+    
+    const highestBudget = monthlyBudgets.reduce(
+      (prev, curr) => {
+        const prevSpent = convertAmount(prev.spentThisMonth || 0, 'PHP');
+        const currSpent = convertAmount(curr.spentThisMonth || 0, 'PHP');
+        return currSpent > prevSpent ? curr : prev;
+      },
+      {} as MonthlyBudget
     );
+    const highestCategory = categories.find(c => c.id === highestBudget.categoryId);
+
     return [
       { title: "Categories", value: categories.length },
-      { title: "Total Spent", value: `€${totalSpent.toFixed(2)}` },
-      { title: "Highest Spent", value: highestCategory.name || "N/A" },
+      { title: "Total Spent", value: formatAmount(totalSpent) },
+      { title: "Highest Spent", value: highestCategory?.name || "N/A" },
     ];
-  }, [categories]);
+  }, [monthlyBudgets, categories, formatAmount, convertAmount]);
+
+  const budgetCategories = useMemo(() => {
+    return monthlyBudgets.map(budget => {
+      const category = categories.find(c => c.id === budget.categoryId);
+      
+      const convertedBudget = convertAmount(budget.budgetAmount || 0, 'PHP');
+      const convertedSpent = convertAmount(budget.spentThisMonth || 0, 'PHP');
+      
+      return {
+        ...budget,
+        category,
+        convertedBudget,
+        convertedSpent
+      };
+    }).filter(item => item.category);
+  }, [monthlyBudgets, categories, convertAmount]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -180,10 +244,12 @@ export const Categories = () => {
       )}
 
       {/* Categories Grid */}
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${categories.length === 0 ? 'pt-8' : ''}`}>
-        {categories.map((category) => {
-          const spent = category.spent || 0;
-          const budget = category.budget || 0;
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${budgetCategories.length === 0 ? 'pt-8' : ''}`}>
+        {budgetCategories.map(({ category, convertedBudget, convertedSpent }) => {
+          if (!category) return null;
+
+          const spent = convertedSpent || 0;
+          const budget = convertedBudget || 0;
           const percentage = budget > 0 ? (spent / budget) * 100 : 0;
           const remaining = Math.max(0, budget - spent);
           const isOverBudget = spent > budget;
@@ -199,11 +265,16 @@ export const Categories = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-semibold text-white">{category.name}</h3>
-                    <p className="text-sm text-white/90">€{budget.toFixed(2)} Budget</p>
+                    <p className="text-sm text-white/90">{formatAmount(budget)} Budget</p>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => handleOpenModal(category)}
+                      onClick={() => handleOpenModal({ 
+                            categoryId: category.id, 
+                            budgetAmount: budget, 
+                            spentThisMonth: spent, 
+                        currency: currency 
+                      })}
                       className="p-2 bg-white/20 border border-white/50 rounded-lg hover:bg-white/30 transition-colors"
                     >
                       <Edit2 className="w-4 h-4 text-white" />
@@ -220,11 +291,11 @@ export const Categories = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm text-white/90">
                     <span>Spent</span>
-                    <span className="font-semibold">€{spent.toFixed(2)}</span>
+                    <span className="font-semibold">{formatAmount(spent)}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-white/90">
                     <span>Remaining</span>
-                    <span className="font-semibold">€{remaining.toFixed(2)}</span>
+                    <span className="font-semibold">{formatAmount(remaining)}</span>
                   </div>
 
                   <div className="w-full h-3 bg-white/25 rounded-full overflow-hidden">
@@ -278,27 +349,31 @@ export const Categories = () => {
         size="md"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-<Input
-  label="Category Name"
-  placeholder="Food & Dining"
-  {...register("name", { required: "Category name is required" })}
-  error={errors.name?.message as string}
-  className="bg-secondary dark:bg-secondary-dark-lighter text-black"
-  placeholderClassName="text-gray-500 dark:text-gray-300"
-  labelClassName="text-primary-dark dark:text-white" // ← ici on change le label
-/>
+          <Input
+            label="Category Name"
+            placeholder="Food & Dining"
+            {...register("name", { required: "Category name is required" })}
+            error={errors.name?.message as string}
+            className="bg-secondary dark:bg-secondary-dark-lighter text-black"
+            placeholderClassName="text-gray-500 dark:text-gray-300"
+            labelClassName="text-primary-dark dark:text-white"
+          />
 
-<Input
-  label="Monthly Budget"
-  type="number"
-  step="0.01"
-  placeholder="0.00"
-  {...register("budget", { required: "Budget is required", min: { value: 0, message: "Budget must be positive" } })}
-  error={errors.budget?.message as string}
-  className="bg-secondary dark:bg-secondary-dark-lighter text-black"
-  placeholderClassName="text-gray-500 dark:text-gray-300"
-  labelClassName="text-primary-dark dark:text-white" // ← label en blanc en dark
-/>
+          <Input
+            label="Monthly Budget"
+            type="number"
+            step="0.01"
+            placeholder="0.00"
+            {...register("budget", { 
+              required: "Budget is required", 
+              min: { value: 0, message: "Budget must be positive" } 
+            })}
+            error={errors.budget?.message as string}
+            className="bg-secondary dark:bg-secondary-dark-lighter text-black"
+            placeholderClassName="text-gray-500 dark:text-gray-300"
+            labelClassName="text-primary-dark dark:text-white"
+          />
+
           <div>
             <label className={`block text-sm font-medium mb-3 ${isDark ? "text-white" : "text-primary-dark"}`}>
               Category Color
@@ -338,7 +413,7 @@ export const Categories = () => {
               type="submit"
               variant="primary"
               fullWidth
-              disabled={createMutation.isPending || updateMutation.isPending}
+              disabled={createMutation.isPending || updateCategoryMutation.isPending || updateBudgetMutation.isPending}
             >
               {editingCategory ? "Update" : "Create"} Category
             </Button>

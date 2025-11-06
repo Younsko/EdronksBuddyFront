@@ -51,37 +51,38 @@
     },
   };
 
-  export const transactionsAPI = {
-    getAll: async (): Promise<Transaction[]> => {
-      const { data } = await api.get('/transactions');
-      const transactions = Array.isArray(data) ? data : (data.data || []);
+export const transactionsAPI = {
+  getAll: async (): Promise<Transaction[]> => {
+    const { data } = await api.get('/transactions');
+    const transactions = Array.isArray(data) ? data : (data.data || []);
 
-      return transactions.map((t: any) => {
-        // Convertir "DD-MM-YYYY" du backend vers "YYYY-MM-DD" pour le frontend
-        let formattedDate = t.transactionDate;
-        
-        if (t.transactionDate && t.transactionDate.includes('-')) {
-          const parts = t.transactionDate.split('-');
-          if (parts.length === 3 && parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
-            // Format DD-MM-YYYY → YYYY-MM-DD
-            const [day, month, year] = parts;
-            formattedDate = `${year}-${month}-${day}`;
-          }
+    return transactions.map((t: any) => {
+      let formattedDate = t.transactionDate;
+      
+      if (t.transactionDate && t.transactionDate.includes('-')) {
+        const parts = t.transactionDate.split('-');
+        if (parts.length === 3 && parts[0].length === 2) {
+          const [day, month, year] = parts;
+          formattedDate = `${year}-${month}-${day}`;
         }
+      }
 
-        return {
-          id: t.id,
-          amount: t.amount,
-          currency: t.currency,
-          description: t.description,
-          transactionDate: formattedDate, // ← Format YYYY-MM-DD pour le frontend
-          category_id: t.categoryId ?? null,
-          user_id: t.userId ?? '',
-          receipt_url: t.receiptImageUrl ?? '',
-          created_at: t.createdAt ?? new Date().toISOString(),
-        };
-      });
-    },
+      return {
+        id: t.id,
+        originalAmount: t.originalAmount || t.amount,
+        originalCurrency: t.originalCurrency || t.currency,
+        amountPHP: t.amountPHP || t.amount,
+        amount: t.amount,
+        currency: t.currency,
+        description: t.description,
+        transactionDate: formattedDate,
+        category_id: t.categoryId ?? null,
+        user_id: t.userId ?? '',
+        receipt_url: t.receiptImageUrl ?? '',
+        created_at: t.createdAt ?? new Date().toISOString(),
+      };
+    });
+  },
 
     create: async (transaction: any) => {
       const payload = { 
@@ -89,7 +90,7 @@
         currency: transaction.currency,
         description: transaction.description,
         categoryId: transaction.categoryId,
-        date: transaction.date // ← Déjà au format "DD-MM-YYYY"
+        date: transaction.date 
       };
       
       console.log('FRONTEND - Payload final:', payload);
@@ -104,7 +105,7 @@
         currency: transaction.currency,
         description: transaction.description,
         categoryId: transaction.categoryId,
-        date: transaction.date // ← Déjà au format "DD-MM-YYYY"
+        date: transaction.date
       };
       
       const { data } = await api.put(`/transactions/${id}`, payload);
@@ -134,53 +135,56 @@
   };
 
   export const categoriesAPI = {
-    getAll: async (): Promise<Category[]> => {
-      const { data } = await api.get('/categories');
-      const categories = Array.isArray(data) ? data : (data.data || []);
-      return categories.map((c: any) => ({
-        id: c.id,
-        name: c.name || c.Name,
-        color: c.color || c.Color || '#17B169',
-        budget: c.monthlyBudget || c.MonthlyBudget || 0,
-        user_id: c.userId || c.UserId || '',
-        spent: c.spentThisMonth || c.SpentThisMonth || 0,
-      }));
-    },
-    create: async (category: { name: string; color: string; budget: number }) => {
-      const { data } = await api.post('/categories', {
-        name: category.name,
-        color: category.color,
-        monthlyBudget: category.budget,
-      });
-      return data;
-    },
-    update: async (id: string, category: { name?: string; color?: string; budget?: number }) => {
-      const { data } = await api.put(`/categories/${id}`, {
-        name: category.name,
-        color: category.color,
-        monthlyBudget: category.budget,
-      });
-      return data;
-    },
-    delete: async (id: string) => {
-      const { data } = await api.delete(`/categories/${id}`);
-      return data;
-    },
-  };
+  getAll: async (): Promise<Category[]> => {
+    const { data } = await api.get('/categories');
+    const categories = Array.isArray(data) ? data : (data.data || []);
+    return categories.map((c: any) => ({
+      id: c.id,
+      name: c.name || c.Name,
+      color: c.color || c.Color || '#17B169',
+      budget: c.monthlyBudget || c.MonthlyBudget || 0,
+      monthlyBudget: c.monthlyBudget || c.MonthlyBudget || 0,
+      user_id: c.userId || c.UserId || '',
+      spent: c.spentThisMonth || c.SpentThisMonth || 0,
+    }));
+  },
 
-  export const userAPI = {
-    getProfile: async (): Promise<User> => {
-      const { data } = await api.get('/user/profile');
-      return {
-        id: data.id || '',
-        name: data.name || '',
-        username: data.username || '',
-        email: data.email || '',
-        currency: data.preferredCurrency || 'EUR',
-        avatar: data.profilePhotoUrl,
-        created_at: data.createdAt || new Date().toISOString(),
-      };
-    },
+  create: async (category: { name: string; color: string; budget: number }) => {
+    const { data } = await api.post('/categories', {
+      name: category.name,
+      color: category.color,
+      monthlyBudget: category.budget,
+    });
+    return data;
+  },
+
+  update: async (id: string, category: { name?: string; color?: string; budget?: number }) => {
+    const { data } = await api.put(`/categories/${id}`, {
+      name: category.name,
+      color: category.color,
+    });
+    return data;
+  },
+
+  delete: async (id: string) => {
+    const { data } = await api.delete(`/categories/${id}`);
+    return data;
+  },
+};
+
+ export const userAPI = {
+  getProfile: async (): Promise<User> => {
+    const { data } = await api.get('/user/profile');
+    return {
+      id: data.id || '',
+      name: data.name || '',
+      username: data.username || '',
+      email: data.email || '',
+      currency: data.preferredCurrency || 'PHP',
+      avatar: data.profilePhotoUrl,
+      created_at: data.createdAt || new Date().toISOString(),
+    };
+  },
 
     updateProfile: async (userData: { name?: string; password?: string; profilePhotoUrl?: string; preferredCurrency?: string }) => {
       const payload: any = {};
@@ -192,7 +196,15 @@
       const { data } = await api.put('/user/profile', payload);
       return data;
     },
-
+    changePassword: async (currentPassword: string, newPassword: string) => {
+    const payload = {
+      currentPassword,
+      newPassword
+    };
+    
+    const { data } = await api.put('/user/password', payload);
+    return data;
+    },
     updateSettings: async (settings: { preferredCurrency?: string }) => {
       const payload: any = {};
       if (settings.preferredCurrency && settings.preferredCurrency.trim() !== '') {
@@ -239,4 +251,32 @@
   },
   };
 
+export const monthlyBudgetsAPI = {
+  getMonthlyBudgets: async (year: number, month: number): Promise<MonthlyBudget[]> => {
+    const { data } = await api.get(`/budgets/monthly/${year}/${month}`);
+    return data.map((b: any) => ({
+      categoryId: b.categoryId,
+      categoryName: b.categoryName,
+      categoryColor: b.categoryColor,
+      budgetAmount: b.budgetAmount,
+      currency: b.currency,
+      year: b.year,
+      month: b.month,
+      spentThisMonth: b.spentThisMonth || 0,
+      remainingBudget: b.remainingBudget || 0,
+    }));
+  },
+
+  initializeMonth: async (year: number, month: number) => {
+    const { data } = await api.post('/budgets/monthly/init', { year, month });
+    return data;
+  },
+
+  updateBudget: async (categoryId: string, budgetAmount: number) => {
+    const { data } = await api.put(`/budgets/monthly/${categoryId}`, { 
+      budgetAmount 
+    });
+    return data;
+  },
+};
   export default api;

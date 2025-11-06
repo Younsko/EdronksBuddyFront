@@ -14,6 +14,9 @@ export interface User {
 
 export interface Transaction {
   id: string;
+  originalAmount: number;
+  originalCurrency: string;
+  amountPHP: number;
   amount: number;
   currency: string;
   description: string;
@@ -70,7 +73,6 @@ export interface Stats {
   }>;
 }
 
-// Nouveau type pour la réponse OCR
 export interface OcrResponse {
   amount?: number;
   amountRaw?: string;
@@ -80,4 +82,24 @@ export interface OcrResponse {
   rawText?: string;
   receiptImageUrl?: string;
   categoryName?: string; 
+}
+export interface MonthlyBudget {
+  categoryId: string;
+  categoryName: string;
+  categoryColor: string;
+  budgetAmount: number;
+  currency: string;
+  year: number;
+  month: number;
+  spentThisMonth: number;
+  remainingBudget: number;
+}
+
+export interface CurrencyConversion {
+  amount: number;
+  fromCurrency: string;
+  toCurrency: string;
+  convertedAmount: number;
+  rate: number;
+  rateDate: string;
 }

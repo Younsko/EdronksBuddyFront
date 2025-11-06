@@ -9,25 +9,29 @@ interface CurrencyState {
   convertAmount: (amount: number, fromCurrency: string) => number;
 }
 
+const SUPPORTED_CURRENCIES = ['PHP', 'EUR', 'USD', 'GBP', 'CAD', 'CHF', 'JPY', 'AUD'];
+
 export const useCurrencyStore = create<CurrencyState>((set, get) => ({
-  currency: 'EUR',
+  currency: 'PHP',
+  
   setCurrency: (currency) => {
     set({ currency });
     localStorage.setItem('preferredCurrency', currency);
   },
+  
   convertAmount: (amount: number, fromCurrency: string) => {
     const { currency: toCurrency } = get();
     if (fromCurrency === toCurrency) return amount;
     
     const rates: { [key: string]: number } = {
-      EUR: 1,
-      USD: 1.08,
-      GBP: 0.85,
-      CAD: 1.46,
-      PHP: 61.5,
-      CHF: 0.95,
-      JPY: 161.5,
-      AUD: 1.65
+      PHP: 1,       
+      EUR: 0.0163,
+      USD: 0.0175,  
+      GBP: 0.0138,   
+      CAD: 0.0238,   
+      CHF: 0.0154,   
+      JPY: 2.625,    
+      AUD: 0.0268,   
     };
     
     const rate = rates[toCurrency] / rates[fromCurrency];
@@ -53,21 +57,35 @@ export const useCurrency = () => {
     currency,
     setCurrency,
     convertAmount,
+    supportedCurrencies: SUPPORTED_CURRENCIES,
+    
     formatAmount: (amount: number, originalCurrency?: string) => {
       const finalAmount = originalCurrency ? convertAmount(amount, originalCurrency) : amount;
       const symbol = getCurrencySymbol(currency);
       return `${symbol} ${finalAmount.toFixed(2)}`;
+    },
+    
+    formatAmountWithOriginal: (originalAmount: number, originalCurrency: string) => {
+      const symbol = getCurrencySymbol(currency);
+      const converted = convertAmount(originalAmount, originalCurrency);
+      
+      if (originalCurrency === currency) {
+        return `${symbol} ${originalAmount.toFixed(2)}`;
+      }
+      
+      const originalSymbol = getCurrencySymbol(originalCurrency);
+      return `${symbol} ${converted.toFixed(2)} (${originalSymbol} ${originalAmount.toFixed(2)})`;
     }
   };
 };
 
 const getCurrencySymbol = (currency: string) => {
   const symbols: { [key: string]: string } = {
+    PHP: '₱',
     EUR: '€',
     USD: '$',
     GBP: '£',
     CAD: 'C$',
-    PHP: '₱',
     CHF: 'CHF',
     JPY: '¥',
     AUD: 'A$'
