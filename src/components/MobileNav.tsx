@@ -1,7 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { Home, CreditCard, BarChart3, User, Settings } from 'lucide-react';
+import { Home, CreditCard, BarChart3, User, Settings, LogOut } from 'lucide-react';
 
-export const MobileNav = () => {
+interface MobileNavProps {
+  onLogout: () => void;
+}
+
+export const MobileNav = ({ onLogout }: MobileNavProps) => {
   const links = [
     { to: '/dashboard', icon: Home },
     { to: '/transactions', icon: CreditCard },
@@ -18,16 +22,23 @@ export const MobileNav = () => {
             key={link.to}
             to={link.to}
             className={({ isActive }) =>
-              `flex items-center justify-center w-14 h-12 rounded-xl transition-all duration-200 ${
+              `flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 ${
                 isActive
                   ? 'bg-primary text-white'
                   : 'text-gray-400 dark:text-gray-500 hover:text-primary-dark dark:hover:text-primary-light hover:bg-secondary dark:hover:bg-secondary-dark-lighter'
               }`
             }
           >
-            <link.icon className="w-6 h-6" />
+            <link.icon className="w-5 h-5" />
           </NavLink>
         ))}
+        <button
+          onClick={onLogout}
+          className="flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 text-expense dark:text-expense-dark hover:bg-expense/10 dark:hover:bg-expense-dark/10"
+          title="Logout"
+        >
+          <LogOut className="w-5 h-5" />
+        </button>
       </div>
     </nav>
   );

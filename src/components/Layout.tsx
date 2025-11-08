@@ -82,7 +82,7 @@ export const Layout = ({ children, isDark, setIsDark }: LayoutProps) => {
           {children}
         </div>
       </main>
-      <MobileNav />
+      <MobileNav onLogout={handleLogout} />
     </div>
   );
 };

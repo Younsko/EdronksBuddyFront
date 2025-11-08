@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Lock, Globe, Sun, Moon, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Card } from '../components/Card';
@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useCurrency } from '../hooks/useCurrency';
+
 export const Settings = () => {
   const navigate = useNavigate();
   const { supportedCurrencies } = useCurrency();
@@ -22,6 +23,28 @@ export const Settings = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showDeletePassword, setShowDeletePassword] = useState(false);
+  
+  // État pour détecter le dark mode
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Détecter le dark mode au chargement et aux changements
+  useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+    
+    // Vérifier au montage
+    checkDarkMode();
+    
+    // Observer les changements de classe sur l'élément HTML
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    return () => observer.disconnect();
+  }, []);
 
   const { data: user } = useQuery({
     queryKey: ['profile'],
@@ -30,20 +53,20 @@ export const Settings = () => {
 
   const { register: registerPassword, handleSubmit: handleSubmitPassword, watch, reset: resetPassword, formState: { errors: passwordErrors } } = useForm();
   const { register: registerDelete, handleSubmit: handleSubmitDelete, formState: { errors: deleteErrors } } = useForm();
-const { register: registerCurrency, handleSubmit: handleSubmitCurrency, setValue } = useForm({
-  defaultValues: {
-    currency: user?.currency || 'PHP'
-  }
-});
+  const { register: registerCurrency, handleSubmit: handleSubmitCurrency, setValue } = useForm({
+    defaultValues: {
+      currency: user?.currency || 'PHP'
+    }
+  });
 
   const newPassword = watch('newPassword');
 
-const updateCurrencyMutation = useMutation({
-  mutationFn: (currency: string) => userAPI.updateSettings({ preferredCurrency: currency }),
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['profile'] });
-  },
-});
+  const updateCurrencyMutation = useMutation({
+    mutationFn: (currency: string) => userAPI.updateSettings({ preferredCurrency: currency }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+  });
 
   const deleteAccountMutation = useMutation({
     mutationFn: ({ password, confirmation }: { password: string; confirmation: string }) =>
@@ -53,45 +76,50 @@ const updateCurrencyMutation = useMutation({
       navigate('/login');
     },
   });
-const updatePasswordMutation = useMutation({
-  mutationFn: (data: any) => userAPI.changePassword(data.currentPassword, data.newPassword),
-  onSuccess: () => {
-    setIsPasswordModalOpen(false);
-    resetPassword();
-    setShowCurrentPassword(false);
-    setShowNewPassword(false);
-    setShowConfirmPassword(false);
-  },
-});
-const onPasswordSubmit = (data: any) => {
-  updatePasswordMutation.mutate(data);
-};
 
-const onCurrencySubmit = (data: any) => {
-  if (data.currency) {
-    updateCurrencyMutation.mutate(data.currency);
-    setValue('currency', data.currency);
-  }
-};
-const onDeleteSubmit = (data: any) => {
-  deleteAccountMutation.mutate({
-    password: data.password,
-    confirmation: data.confirmation
+  const updatePasswordMutation = useMutation({
+    mutationFn: (data: any) => userAPI.changePassword(data.currentPassword, data.newPassword),
+    onSuccess: () => {
+      setIsPasswordModalOpen(false);
+      resetPassword();
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+    },
   });
-};
-  const getCurrencyName = (currency: string) => {
-  const names: { [key: string]: string } = {
-    PHP: 'Philippine Peso',
-    EUR: 'Euro',
-    USD: 'US Dollar',
-    GBP: 'British Pound',
-    CAD: 'Canadian Dollar',
-    CHF: 'Swiss Franc',
-    JPY: 'Japanese Yen',
-    AUD: 'Australian Dollar',
+
+  const onPasswordSubmit = (data: any) => {
+    updatePasswordMutation.mutate(data);
   };
-  return names[currency] || currency;
-};
+
+  const onCurrencySubmit = (data: any) => {
+    if (data.currency) {
+      updateCurrencyMutation.mutate(data.currency);
+      setValue('currency', data.currency);
+    }
+  };
+
+  const onDeleteSubmit = (data: any) => {
+    deleteAccountMutation.mutate({
+      password: data.password,
+      confirmation: data.confirmation
+    });
+  };
+
+  const getCurrencyName = (currency: string) => {
+    const names: { [key: string]: string } = {
+      PHP: 'Philippine Peso',
+      EUR: 'Euro',
+      USD: 'US Dollar',
+      GBP: 'British Pound',
+      CAD: 'Canadian Dollar',
+      CHF: 'Swiss Franc',
+      JPY: 'Japanese Yen',
+      AUD: 'Australian Dollar',
+    };
+    return names[currency] || currency;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -141,12 +169,12 @@ const onDeleteSubmit = (data: any) => {
                 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-primary-light focus:border-transparent
                 text-primary-dark dark:text-white"
             >
-{supportedCurrencies.map(curr => (
-      <option key={curr} value={curr}>
-        {curr} - {getCurrencyName(curr)}
-      </option>
-    ))}
-  </select>
+              {supportedCurrencies.map(curr => (
+                <option key={curr} value={curr}>
+                  {curr} - {getCurrencyName(curr)}
+                </option>
+              ))}
+            </select>
           </div>
 
           <Button type="submit" variant="primary" disabled={updateCurrencyMutation.isPending}>
@@ -158,8 +186,8 @@ const onDeleteSubmit = (data: any) => {
       <Card>
         <div className="flex items-center gap-4 pb-4 border-b border-gray-100 dark:border-gray-700">
           <div className="w-12 h-12 bg-primary/10 dark:bg-primary-light/20 rounded-xl flex items-center justify-center">
-            {document.documentElement.classList.contains('dark') ? (
-              <Moon className="w-6 h-6 text-primary dark:text-primary-light" />
+            {isDarkMode ? (
+              <Moon className="w-6 h-6 text-primary dark:text-white" />
             ) : (
               <Sun className="w-6 h-6 text-primary" />
             )}
@@ -174,9 +202,9 @@ const onDeleteSubmit = (data: any) => {
             You can toggle between light and dark mode using the button in the top right corner
           </p>
           <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/5 dark:bg-primary-light/10 border border-primary/20 dark:border-primary-light/30">
-            {document.documentElement.classList.contains('dark') ? (
+            {isDarkMode ? (
               <>
-                <Moon className="w-5 h-5 text-primary-light" />
+                <Moon className="w-5 h-5 text-white" />
                 <div>
                   <p className="font-medium text-primary-dark dark:text-white">Dark Mode</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
@@ -378,5 +406,4 @@ const onDeleteSubmit = (data: any) => {
       </Modal>
     </motion.div>
   );
-
 };
