@@ -447,13 +447,14 @@ const filteredTransactions = transactions.filter(t => {
         size="md"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-3 flex items-center gap-2">
+          {/* OCR Section */}
+          <div className="p-3 lg:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <h3 className="font-semibold text-sm lg:text-base text-blue-800 dark:text-blue-300 mb-2 lg:mb-3 flex items-center gap-2">
               <Camera className="w-4 h-4" />
               Scan Receipt from URL
             </h3>
             
-            <div className="flex gap-2 mb-2">
+            <div className="flex flex-col sm:flex-row gap-2 mb-2">
               <div className="flex-1">
                 <input
                   type="url"
@@ -470,7 +471,8 @@ const filteredTransactions = transactions.filter(t => {
                 variant="primary"
                 onClick={handleOcrFromUrl}
                 disabled={isOcrLoading || !imageUrl.trim()}
-                className="flex items-center gap-2 whitespace-nowrap"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                size="sm"
               >
                 {isOcrLoading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -486,6 +488,7 @@ const filteredTransactions = transactions.filter(t => {
             </p>
           </div>
 
+          {/* Amount */}
           <Input
             label="Amount"
             type="number"
@@ -499,6 +502,7 @@ const filteredTransactions = transactions.filter(t => {
             error={errors.amount?.message as string}
           />
 
+          {/* Currency */}
           <div>
             <label className="block text-sm font-medium text-primary-dark dark:text-primary-light mb-2">
               Currency
@@ -513,16 +517,17 @@ const filteredTransactions = transactions.filter(t => {
               <option value="USD">USD</option>
               <option value="GBP">GBP</option>
               <option value="CAD">CAD</option>
-              <option value="PHP">PHP (Philippine Peso)</option>
-              <option value="JPY">JPY (Japanese Yen)</option>
-              <option value="AUD">AUD (Australian Dollar)</option>
-              <option value="CHF">CHF (Swiss Franc)</option>
+              <option value="PHP">PHP</option>
+              <option value="JPY">JPY</option>
+              <option value="AUD">AUD</option>
+              <option value="CHF">CHF</option>
             </select>
             {errors.currency && (
               <p className="mt-1 text-sm text-expense dark:text-expense-dark">{errors.currency.message as string}</p>
             )}
           </div>
 
+          {/* Description */}
           <Input
             label="Description"
             placeholder="Coffee at Starbucks"
@@ -530,11 +535,12 @@ const filteredTransactions = transactions.filter(t => {
             error={errors.description?.message as string}
           />
 
+          {/* Date */}
           <div>
             <label className="block text-sm font-medium text-primary-dark dark:text-primary-light mb-2">
               Date
             </label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Day</label>
                 <select
@@ -543,7 +549,7 @@ const filteredTransactions = transactions.filter(t => {
                     min: { value: 1, message: 'Invalid day' },
                     max: { value: 31, message: 'Invalid day' }
                   })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-secondary-dark
+                  className="w-full px-2 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-secondary-dark
                     focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-primary-light focus:border-transparent
                     text-primary-dark dark:text-white"
                 >
@@ -553,9 +559,6 @@ const filteredTransactions = transactions.filter(t => {
                     </option>
                   ))}
                 </select>
-                {errors.day && (
-                  <p className="mt-1 text-xs text-expense dark:text-expense-dark">{errors.day.message as string}</p>
-                )}
               </div>
 
               <div>
@@ -566,19 +569,16 @@ const filteredTransactions = transactions.filter(t => {
                     min: { value: 1, message: 'Invalid month' },
                     max: { value: 12, message: 'Invalid month' }
                   })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-secondary-dark
+                  className="w-full px-2 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-secondary-dark
                     focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-primary-light focus:border-transparent
                     text-primary-dark dark:text-white"
                 >
                   {months.map(month => (
                     <option key={month.value} value={month.value}>
-                      {month.label}
+                      {month.label.substring(0, 3)}
                     </option>
                   ))}
                 </select>
-                {errors.month && (
-                  <p className="mt-1 text-xs text-expense dark:text-expense-dark">{errors.month.message as string}</p>
-                )}
               </div>
 
               <div>
@@ -589,7 +589,7 @@ const filteredTransactions = transactions.filter(t => {
                     min: { value: 2000, message: 'Year must be after 2000' },
                     max: { value: 2100, message: 'Year must be before 2100' }
                   })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-secondary-dark
+                  className="w-full px-2 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-secondary-dark
                     focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-primary-light focus:border-transparent
                     text-primary-dark dark:text-white"
                 >
@@ -599,13 +599,11 @@ const filteredTransactions = transactions.filter(t => {
                     </option>
                   ))}
                 </select>
-                {errors.year && (
-                  <p className="mt-1 text-xs text-expense dark:text-expense-dark">{errors.year.message as string}</p>
-                )}
               </div>
             </div>
           </div>
 
+          {/* Category */}
           <div>
             <label className="block text-sm font-medium text-primary-dark dark:text-primary-light mb-2">
               Category
@@ -623,7 +621,8 @@ const filteredTransactions = transactions.filter(t => {
             </select>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          {/* Buttons - Maintenant scrollables */}
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-6 pb-2">
             <Button
               type="button"
               variant="secondary"

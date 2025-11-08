@@ -15,7 +15,7 @@ export const MobileNav = ({ onLogout }: MobileNavProps) => {
   ];
 
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white dark:bg-secondary-dark border-t border-gray-100 dark:border-gray-700 z-50">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white dark:bg-secondary-dark border-t border-gray-100 dark:border-gray-700 z-40 safe-area-inset-bottom">
       <div className="flex items-center justify-around px-2 py-3">
         {links.map((link) => (
           <NavLink
